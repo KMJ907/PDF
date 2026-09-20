@@ -1,141 +1,267 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PDF 보안 해제기 (삼성 노트 필기용)</title>
-  <!-- pdf-lib 라이브러리 로드 -->
-  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    body {
-      background-color: #f4f7f6;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 480px;
-    }
-    h1 {
-      font-size: 1.4rem;
-      color: #333;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      font-size: 0.9rem;
-      color: #666;
-      margin-bottom: 5px;
-    }
-    input[type="file"], input[type="password"] {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 0.9rem;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    #status {
-      margin-top: 15px;
-      font-size: 0.85rem;
-      text-align: center;
-      color: #555;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF 필기 호환 변환기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI","Malgun Gothic",sans-serif;background:#f4f6f8;color:#202124}
+header{background:#fff;border-bottom:1px solid #ddd;padding:18px 24px}
+h1{margin:0;font-size:21px}
+main{max-width:1050px;margin:30px auto;padding:0 18px}
+.card{background:#fff;border:1px solid #ddd;border-radius:16px;padding:24px;box-shadow:0 4px 18px #0000000d}
+.drop{border:2px dashed #9aa0a6;border-radius:14px;padding:45px 20px;text-align:center;cursor:pointer;transition:.2s}
+.drop.drag{background:#f0f6ff;border-color:#4285f4}
+.drop strong{display:block;font-size:18px;margin-bottom:8px}
+button{border:0;border-radius:10px;padding:11px 17px;font-size:15px;cursor:pointer;background:#1a73e8;color:white}
+button:disabled{opacity:.45;cursor:not-allowed}
+#fileInput{display:none}
+.info{margin-top:18px;display:none}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.status{margin-top:14px;color:#5f6368;font-size:14px}
+.progress{height:8px;background:#e8eaed;border-radius:99px;overflow:hidden;margin-top:12px;display:none}
+.bar{height:100%;width:0;background:#1a73e8;transition:.2s}
+.preview{margin-top:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.page{border:1px solid #ddd;border-radius:10px;padding:8px;background:#fafafa}
+.page canvas{width:100%;height:auto;display:block;background:white}
+.page small{display:block;text-align:center;margin-top:6px;color:#666}
+.notice{margin-top:18px;padding:13px 15px;border-radius:10px;background:#f8f9fa;color:#5f6368;font-size:13px;line-height:1.55}
+</style>
 </head>
 <body>
+<header><h1>PDF 필기 호환 변환기</h1></header>
 
-<div class="container">
-  <h1>삼성 노트 PDF 보안 해제</h1>
-  
-  <div class="form-group">
-    <label for="pdfFile">PDF 파일 선택</label>
-    <input type="file" id="pdfFile" accept="application/pdf" />
+<main>
+<div class="card">
+  <div id="drop" class="drop">
+    <strong>PDF 파일을 여기에 놓으세요</strong>
+    <span>또는 클릭해서 파일을 선택하세요</span>
+    <input id="fileInput" type="file" accept="application/pdf,.pdf">
   </div>
 
-  <div class="form-group">
-    <label for="password">비밀번호 (열기 암호가 있는 경우만 입력)</label>
-    <input type="password" id="password" placeholder="없으면 비워두세요" />
+  <div id="info" class="info">
+    <div class="row">
+      <span id="fileName"></span>
+      <span id="pageCount"></span>
+      <button id="convert" disabled>필기 호환 PDF 만들기</button>
+    </div>
+    <div id="status" class="status"></div>
+    <div id="progress" class="progress"><div id="bar" class="bar"></div></div>
   </div>
 
-  <button onclick="unlockPdf()">보안 해제 및 다운로드</button>
+  <div id="preview" class="preview"></div>
 
-  <div id="status"></div>
+  <div class="notice">
+    이 도구는 PDF의 내용을 브라우저에서 새 PDF로 다시 저장합니다.
+    서버로 원본 PDF를 업로드하지 않습니다. 암호를 모르거나 권한이 없는 PDF의
+    보호를 우회하기 위한 용도로 사용하지 말고, 본인이 소유하거나 변환 권한이 있는 파일에 사용하세요.
+  </div>
 </div>
+</main>
 
-<script>
-  async function unlockPdf() {
-    const fileInput = document.getElementById('pdfFile');
-    const passwordInput = document.getElementById('password');
-    const statusDiv = document.getElementById('status');
+<script type="module">
+import * as pdfjsLib from
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
 
-    if (!fileInput.files.length) {
-      alert('PDF 파일을 먼저 선택해 주세요.');
-      return;
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+
+const { PDFDocument } = PDFLib;
+
+const drop = document.getElementById("drop");
+const input = document.getElementById("fileInput");
+const info = document.getElementById("info");
+const preview = document.getElementById("preview");
+const fileName = document.getElementById("fileName");
+const pageCount = document.getElementById("pageCount");
+const convert = document.getElementById("convert");
+const status = document.getElementById("status");
+const progress = document.getElementById("progress");
+const bar = document.getElementById("bar");
+
+let selectedFile = null;
+
+drop.addEventListener("click", () => input.click());
+input.addEventListener("change", e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+["dragenter","dragover"].forEach(type => {
+  drop.addEventListener(type, e => {
+    e.preventDefault();
+    drop.classList.add("drag");
+  });
+});
+
+["dragleave","drop"].forEach(type => {
+  drop.addEventListener(type, e => {
+    e.preventDefault();
+    drop.classList.remove("drag");
+  });
+});
+
+drop.addEventListener("drop", e => {
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+async function loadFile(file) {
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    alert("PDF 파일만 선택할 수 있습니다.");
+    return;
+  }
+
+  selectedFile = file;
+  fileName.textContent = file.name;
+  status.textContent = "PDF를 읽는 중...";
+  info.style.display = "block";
+  preview.innerHTML = "";
+  convert.disabled = true;
+
+  try {
+    const buffer = await file.arrayBuffer();
+
+    // PDF.js에는 복사본을 전달하여 원본 ArrayBuffer의 상태 변경을 피한다.
+    const pdf = await pdfjsLib.getDocument({data: new Uint8Array(buffer)}).promise;
+
+    pageCount.textContent = `· ${pdf.numPages}페이지`;
+    status.textContent = "미리보기 생성 중...";
+
+    const maxPreview = Math.min(pdf.numPages, 12);
+
+    for (let i = 1; i <= maxPreview; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({scale: 0.55});
+
+      const box = document.createElement("div");
+      box.className = "page";
+
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      const ctx = canvas.getContext("2d");
+      await page.render({canvasContext: ctx, viewport}).promise;
+
+      const label = document.createElement("small");
+      label.textContent = `${i} / ${pdf.numPages}`;
+
+      box.append(canvas, label);
+      preview.appendChild(box);
     }
 
-    const file = fileInput.files[0];
-    const password = passwordInput.value;
+    if (pdf.numPages > maxPreview) {
+      const more = document.createElement("div");
+      more.className = "notice";
+      more.textContent = `미리보기는 처음 ${maxPreview}페이지만 표시합니다. 변환은 전체 ${pdf.numPages}페이지에 적용됩니다.`;
+      preview.appendChild(more);
+    }
 
-    statusDiv.innerText = 'PDF 변환 중...';
+    status.textContent = "변환할 수 있습니다.";
+    convert.disabled = false;
+  } catch (err) {
+    console.error(err);
+    status.textContent = "PDF를 읽지 못했습니다.";
+    alert("PDF를 읽는 중 오류가 발생했습니다.");
+  }
+}
 
-    try {
-      const fileArrayBuffer = await file.arrayBuffer();
+convert.addEventListener("click", async () => {
+  if (!selectedFile) return;
 
-      // pdf-lib를 사용하여 PDF 문서 로드 (필요시 암호 전달)
-      const pdfDoc = await PDFLib.PDFDocument.load(fileArrayBuffer, {
-        password: password || undefined,
-        ignoreEncryption: false
+  convert.disabled = true;
+  progress.style.display = "block";
+  bar.style.width = "0%";
+  status.textContent = "필기 호환용 PDF를 생성하는 중...";
+
+  try {
+    const inputBytes = new Uint8Array(await selectedFile.arrayBuffer());
+
+    /*
+      기존 PDF를 그대로 복제하지 않고 페이지의 렌더링 결과를
+      새 PDF에 삽입합니다.
+
+      따라서 원본 PDF의 일부 권한/작성기 메타데이터에 의존하지 않는
+      새 PDF가 만들어집니다.
+    */
+    const sourcePdf = await pdfjsLib.getDocument({data: inputBytes}).promise;
+    const outputPdf = await PDFDocument.create();
+
+    for (let i = 1; i <= sourcePdf.numPages; i++) {
+      const page = await sourcePdf.getPage(i);
+
+      // 고해상도 렌더링
+      const scale = 2.0;
+      const viewport = page.getViewport({scale});
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+
+      const ctx = canvas.getContext("2d", {alpha:false});
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      await page.render({
+        canvasContext: ctx,
+        viewport
+      }).promise;
+
+      const pngData = canvas.toDataURL("image/png");
+      const image = await outputPdf.embedPng(pngData);
+
+      // 원본 페이지의 실제 PDF 크기를 유지
+      const originalViewport = page.getViewport({scale:1});
+      const outPage = outputPdf.addPage([
+        originalViewport.width,
+        originalViewport.height
+      ]);
+
+      outPage.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: originalViewport.width,
+        height: originalViewport.height
       });
 
-      // 보안 암호화 설정 없이 새로 인코딩하여 저장
-      const unlockedPdfBytes = await pdfDoc.save();
+      const percent = Math.round(i / sourcePdf.numPages * 100);
+      bar.style.width = percent + "%";
+      status.textContent = `${i} / ${sourcePdf.numPages}페이지 처리 중...`;
 
-      // 다운로드 링크 생성 및 자동 클릭
-      const blob = new Blob([unlockedPdfBytes], { type: 'application/pdf' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `unlocked_${file.name}`;
-      link.click();
-
-      statusDiv.innerText = '성공적으로 보안이 해제되었습니다!';
-    } catch (err) {
-      console.error(err);
-      statusDiv.innerText = '오류 발생: 암호가 틀렸거나 지원되지 않는 보안 방식입니다.';
+      // 브라우저 UI가 멈추는 것을 줄임
+      await new Promise(requestAnimationFrame);
     }
-  }
-</script>
 
+    const outputBytes = await outputPdf.save({
+      useObjectStreams: true
+    });
+
+    const blob = new Blob([outputBytes], {type:"application/pdf"});
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    const base = selectedFile.name.replace(/\.pdf$/i, "");
+    a.href = url;
+    a.download = `${base}_필기호환.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    bar.style.width = "100%";
+    status.textContent = "완료되었습니다. 새 PDF를 열어 필기가 가능한지 확인하세요.";
+  } catch (err) {
+    console.error(err);
+    status.textContent = "변환 중 오류가 발생했습니다.";
+    alert("PDF 변환 중 오류가 발생했습니다.\n\n" + (err.message || err));
+  } finally {
+    convert.disabled = false;
+  }
+});
+</script>
 </body>
 </html>
