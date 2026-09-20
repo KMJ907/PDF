@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDF 보안 해제기 (삼성 노트 필기용)</title>
+  <!-- pdf-lib 라이브러리 로드 -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #f4f7f6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 480px;
+    }
+    h1 {
+      font-size: 1.4rem;
+      color: #333;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    input[type="file"], input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #status {
+      margin-top: 15px;
+      font-size: 0.85rem;
+      text-align: center;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>삼성 노트 PDF 보안 해제</h1>
+  
+  <div class="form-group">
+    <label for="pdfFile">PDF 파일 선택</label>
+    <input type="file" id="pdfFile" accept="application/pdf" />
+  </div>
+
+  <div class="form-group">
+    <label for="password">비밀번호 (열기 암호가 있는 경우만 입력)</label>
+    <input type="password" id="password" placeholder="없으면 비워두세요" />
+  </div>
+
+  <button onclick="unlockPdf()">보안 해제 및 다운로드</button>
+
+  <div id="status"></div>
+</div>
+
+<script>
+  async function unlockPdf() {
+    const fileInput = document.getElementById('pdfFile');
+    const passwordInput = document.getElementById('password');
+    const statusDiv = document.getElementById('status');
+
+    if (!fileInput.files.length) {
+      alert('PDF 파일을 먼저 선택해 주세요.');
+      return;
+    }
+
+    const file = fileInput.files[0];
+    const password = passwordInput.value;
+
+    statusDiv.innerText = 'PDF 변환 중...';
+
+    try {
+      const fileArrayBuffer = await file.arrayBuffer();
+
+      // pdf-lib를 사용하여 PDF 문서 로드 (필요시 암호 전달)
+      const pdfDoc = await PDFLib.PDFDocument.load(fileArrayBuffer, {
+        password: password || undefined,
+        ignoreEncryption: false
+      });
+
+      // 보안 암호화 설정 없이 새로 인코딩하여 저장
+      const unlockedPdfBytes = await pdfDoc.save();
+
+      // 다운로드 링크 생성 및 자동 클릭
+      const blob = new Blob([unlockedPdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `unlocked_${file.name}`;
+      link.click();
+
+      statusDiv.innerText = '성공적으로 보안이 해제되었습니다!';
+    } catch (err) {
+      console.error(err);
+      statusDiv.innerText = '오류 발생: 암호가 틀렸거나 지원되지 않는 보안 방식입니다.';
+    }
+  }
+</script>
+
+</body>
+</html>
